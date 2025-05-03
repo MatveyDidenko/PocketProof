@@ -26,7 +26,9 @@ import java.util.concurrent.Executor
 
 @Composable
 fun CameraScreen(
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
+        .fillMaxSize()
+        .padding(WindowInsets.systemBars.asPaddingValues()),
     onImageCaptured: (android.graphics.Bitmap) -> Unit
 ) {
     val context = LocalContext.current
