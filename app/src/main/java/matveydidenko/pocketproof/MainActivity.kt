@@ -1,6 +1,7 @@
 package matveydidenko.pocketproof
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,28 +21,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             PocketProofTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
+                    CameraScreen(
+                        onImageCaptured = { bitmap ->
+                            // Handle the bitmap (e.g., upload to server or display)
+                            Toast.makeText(this, "Image captured: ${bitmap.width}x${bitmap.height}", Toast.LENGTH_SHORT).show()
+                        },
                         modifier = Modifier.padding(innerPadding)
                     )
+
                 }
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    PocketProofTheme {
-        Greeting("Android")
     }
 }
