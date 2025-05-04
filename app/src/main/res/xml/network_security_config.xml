@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- my local PC address where the OCR server is running -->
+        <domain includeSubdomains="true">192.168.5.87</domain>
+    </domain-config>
+</network-security-config>

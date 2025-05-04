@@ -11,8 +11,8 @@ pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tessera
 #THESE ARE SPECIFIC TO DUNKIN DONUTS
 # format: 'digits item_name digit.2digits'
 item_pattern = re.compile(r'^(\d+)\s+(.+?)\s+(\d+\.\d{2})$')
-# format: 'Subtotal $digits.2digits'
-subtotal_pattern = re.compile(r'^Subtotal\s+\$?(\d+\.\d{2})$', re.IGNORECASE)
+# format: 'Payment $digits.2digits'
+subtotal_pattern = re.compile(r'\bPayment\s+\$(\d+\.\d{2})?', re.IGNORECASE)
 
 
 @app.route('/ocr', methods=['POST'])
