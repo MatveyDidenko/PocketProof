@@ -34,7 +34,8 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
-
+import androidx.activity.viewModels
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 data class ReceiptItem(val name: String, val price: Double, val qty: String)
 data class OcrResult(val items: List<ReceiptItem>, val subtotal: Double? = 0.0)
@@ -91,19 +92,21 @@ fun parseOcrResult(json: String): OcrResult {
 }
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: MainViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         enableEdgeToEdge()
+
         setContent {
-            var screenState by remember { mutableStateOf<ScreenState>(ScreenState.Camera) }
+            val screenState by viewModel.screenState.collectAsStateWithLifecycle()
 
             PocketProofTheme {
                 when (val state = screenState) {
                     ScreenState.Camera -> {
                         CameraScreen(
                             onImageCaptured = { bitmap ->
-                                screenState = Edit(bitmap)
+                                viewModel.setScreenState(ScreenState.Edit(bitmap))
                             }
                         )
                     }
@@ -117,7 +120,7 @@ class MainActivity : ComponentActivity() {
                                     finalBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
                                 }
 
-                                screenState = ScreenState.Loading
+                                viewModel.setScreenState(ScreenState.Loading)
 
                                 //OCR network request
                                 CoroutineScope(Dispatchers.IO).launch {
@@ -126,19 +129,19 @@ class MainActivity : ComponentActivity() {
                                     val parsedResult = parseOcrResult(json)
                                     Log.e("MainActivityLOG", "parsed: ${parsedResult}")
                                     withContext(Dispatchers.Main) {
-                                        screenState = ScreenState.Result(parsedResult)
+                                        viewModel.setScreenState(ScreenState.Result(parsedResult))
                                     }
                                 }
                             },
                             onCancel = {
-                                screenState = ScreenState.Camera
+                                viewModel.setScreenState(ScreenState.Camera)
                             }
                         )
                     }
                     ScreenState.Loading -> LoadingScreen()
                     is ScreenState.Result -> ResultScreen(
                         data = state.data,
-                        onBack = {screenState = ScreenState.Camera}
+                        onBack = { viewModel.setScreenState(ScreenState.Camera) }
                     )
                 }
             }
