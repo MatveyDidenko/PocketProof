@@ -36,11 +36,14 @@ import java.io.File
 import java.io.FileOutputStream
 import androidx.activity.viewModels
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import matveydidenko.pocketproof.database.AppDatabase
+import matveydidenko.pocketproof.database.ReceiptEntity
 
 data class ReceiptItem(val name: String, val price: Double, val qty: String)
 data class OcrResult(val items: List<ReceiptItem>, val subtotal: Double? = 0.0)
 
 sealed class ScreenState {
+    object Main : ScreenState()
     object Camera : ScreenState()
     data class Edit(val bitmap: Bitmap) : ScreenState()
     object Loading : ScreenState()
@@ -85,7 +88,7 @@ fun parseOcrResult(json: String): OcrResult {
     val subtotal = if (jsonObj.has("subtotal") && !jsonObj.isNull("subtotal")) {
         jsonObj.getDouble("subtotal")
     } else {
-        0.0
+        items.sumOf { it.price }
     }
 
     return OcrResult(items = items, subtotal = subtotal)
@@ -96,21 +99,35 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val db = AppDatabase.getInstance(this)
+        val dao = db.receiptDao()
+
         enableEdgeToEdge()
 
         setContent {
             val screenState by viewModel.screenState.collectAsStateWithLifecycle()
+            val receipts by viewModel.savedReceipts.collectAsStateWithLifecycle(initialValue = emptyList())
 
             PocketProofTheme {
                 when (val state = screenState) {
-                    ScreenState.Camera -> {
+                    Main -> {
+                        MainScreen(
+                            receipts = receipts,
+                            onScanClick = {
+                                viewModel.setScreenState(Camera)
+                            },
+                            onDeleteReceipt = { viewModel.deleteReceipt(it) }
+                        )
+                    }
+                    Camera -> {
                         CameraScreen(
                             onImageCaptured = { bitmap ->
-                                viewModel.setScreenState(ScreenState.Edit(bitmap))
+                                viewModel.setScreenState(Edit(bitmap))
                             }
                         )
                     }
-                    is ScreenState.Edit -> {
+                    is Edit -> {
                         EditImageScreen(
                             bitmap = state.bitmap,
                             onSave = { finalBitmap ->
@@ -120,7 +137,7 @@ class MainActivity : ComponentActivity() {
                                     finalBitmap.compress(Bitmap.CompressFormat.JPEG, 95, out)
                                 }
 
-                                viewModel.setScreenState(ScreenState.Loading)
+                                viewModel.setScreenState(Loading)
 
                                 //OCR network request
                                 CoroutineScope(Dispatchers.IO).launch {
@@ -129,19 +146,26 @@ class MainActivity : ComponentActivity() {
                                     val parsedResult = parseOcrResult(json)
                                     Log.e("MainActivityLOG", "parsed: ${parsedResult}")
                                     withContext(Dispatchers.Main) {
-                                        viewModel.setScreenState(ScreenState.Result(parsedResult))
+                                        viewModel.setScreenState(Result(parsedResult))
                                     }
                                 }
                             },
                             onCancel = {
-                                viewModel.setScreenState(ScreenState.Camera)
+                                viewModel.setScreenState(Camera)
                             }
                         )
                     }
-                    ScreenState.Loading -> LoadingScreen()
-                    is ScreenState.Result -> ResultScreen(
+                    Loading -> LoadingScreen()
+                    is Result -> ResultScreen(
                         data = state.data,
-                        onBack = { viewModel.setScreenState(ScreenState.Camera) }
+                        onBack = { viewModel.setScreenState(Camera) },
+                        onSave = { rawJson ->
+                            CoroutineScope(Dispatchers.IO).launch {
+                                dao.insertReceipt(ReceiptEntity(json = rawJson, timestamp = System.currentTimeMillis()))
+                            }
+
+                            viewModel.setScreenState(Main)
+                        }
                     )
                 }
             }
